@@ -36,9 +36,9 @@ template <class Op>
 FLATTEN
 std::pair<uintptr_t, uintptr_t>
 INLINE_NEVER
-modify(uintptr_t& dest, Op& op)
+modify(uintptr_t& dest, Op&& op)
 {
-    using op_result_type = decltype(op(std::declval<uintptr_t>()));
+    using op_result_type = decltype(std::declval<Op&>()(std::declval<uintptr_t>()));
     static_assert(std::is_assignable<uintptr_t&, op_result_type>::value,
                   "Op invocation must be result compatible");
     detail::busywaiter waiter;
