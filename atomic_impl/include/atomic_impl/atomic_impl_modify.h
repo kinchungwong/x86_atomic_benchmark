@@ -2,35 +2,12 @@
 #define ATOMIC_IMPL_MODIFY_H
 
 #include <cstdint>
-#include "atomic_impl_methods.h"
-#include "atomic_impl_traits.h"
-#include "atomic_impl_busywait.h"
+#include "atomic_impl/atomic_impl_defs.h"
+#include "atomic_impl/atomic_impl_methods.h"
+#include "atomic_impl/atomic_impl_traits.h"
+#include "atomic_impl/atomic_impl_busywait.h"
 
 namespace atomic_impl {
-
-namespace detail {
-template <class Op>
-/**
- * @internal Do not use.
- * @see atomic_impl::modify<Op>(uintptr_t&, uintptr_t, const Op&)
- */
-static uintptr_t _detail_modify(uintptr_t& dest, uintptr_t operand, const Op& op)
-{
-    busywaiter waiter;
-    while (true)
-    {
-        uintptr_t expected = load(dest);    
-        uintptr_t desired = op(expected, operand);
-        if (try_replace(dest, expected, desired))
-        {
-            return desired;
-        }
-        waiter.wait();
-        //! @note after a busywait pause or yield, dest needs reloaded.
-    };
-    //! @note this line shall be unreachable.
-}
-} // namespace detail (inside atomic_impl)
 
 /**
  * @brief Modifies the value of the destination by applying the binary operation
@@ -68,13 +45,25 @@ static uintptr_t _detail_modify(uintptr_t& dest, uintptr_t operand, const Op& op
  * @return The value of the destination after the operation.
  */
 template <class Op>
-static auto modify(uintptr_t& dest, uintptr_t operand, const Op& op) -> 
-    typename std::enable_if<
-        traits::is_binary_op<Op>::value,
-        uintptr_t
-    >::type
+static
+uintptr_t
+INLINE_NEVER
+modify(uintptr_t& dest, uintptr_t operand, const Op& op)
 {
-    return detail::_detail_modify<Op>(dest, operand, op);
+    static_assert(traits::is_binary_op<Op>::value, "Op must be a binary operation");
+    detail::busywaiter waiter;
+    while (true)
+    {
+        uintptr_t expected = load(dest);    
+        uintptr_t desired = op(expected, operand);
+        if (try_replace(dest, expected, desired))
+        {
+            return desired;
+        }
+        waiter.wait();
+        //! @note after a busywait pause or yield, dest needs reloaded.
+    };
+    //! @note this line shall be unreachable.
 };
 
 } // namespace atomic_impl

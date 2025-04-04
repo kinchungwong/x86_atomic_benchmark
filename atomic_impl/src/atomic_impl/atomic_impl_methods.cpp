@@ -10,10 +10,8 @@
 #include <utility>
 #include <thread>
 
-#include <atomic_impl/atomic_impl_methods.h>
-
-#define INLINE_NEVER __attribute__((noinline))
-#define INLINE_ALWAYS __attribute__((always_inline))
+#include "atomic_impl/atomic_impl_defs.h"
+#include "atomic_impl/atomic_impl_methods.h"
 
 namespace atomic_impl
 {

@@ -1,6 +1,7 @@
 #ifndef ATOMIC_IMPL_H
 #define ATOMIC_IMPL_H
 
+#include "atomic_impl/atomic_impl_defs.h"
 #include "atomic_impl/atomic_impl_methods.h"
 #include "atomic_impl/atomic_impl_modify.h"
 
