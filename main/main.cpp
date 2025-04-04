@@ -3,6 +3,7 @@
 
 #define SINGLE_TRANSLATION_UNIT_BUILD_MODE
 #include "atomic_impl/atomic_impl.h"
+#include "benchmark_1.cpp"
 
 #define ALMOST_ALWAYS() (__rdtsc() != (__rdtsc() ^ UINT64_C(0x1111111111111111)))
 #define ALMOST_NEVER() (__rdtsc() == (__rdtsc() ^ UINT64_C(0x1111111111111111)))
@@ -78,11 +79,19 @@ void simple_demo_4()
     std::cout << "After: " << result.second << std::endl;
 }
 
+void benchmark_1()
+{
+    std::cout << "====== Benchmark 1 ======" << std::endl;
+    Benchmark1 benchmark1;
+    benchmark1.run();
+}
+
 int main()
 {
     simple_demo_1();
     simple_demo_2();
     simple_demo_3();
     simple_demo_4();
+    benchmark_1();
     return 0;
 }
