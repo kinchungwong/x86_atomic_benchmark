@@ -46,6 +46,7 @@ namespace atomic_impl {
  */
 template <class Op>
 static
+FLATTEN
 uintptr_t
 INLINE_NEVER
 modify(uintptr_t& dest, uintptr_t operand, const Op& op)
