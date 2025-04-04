@@ -33,7 +33,6 @@ namespace atomic_impl {
  * @see fetch_modify, fetch_add, fetch_sub, fetch_and, fetch_or, fetch_xor, fetch_nand
  */
 template <class Op>
-static
 FLATTEN
 std::pair<uintptr_t, uintptr_t>
 INLINE_NEVER
