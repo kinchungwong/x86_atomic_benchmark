@@ -1,0 +1,31 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}/atomic_impl/include",
+                "${workspaceFolder}/atomic_impl/src"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/g++",
+            "compilerArgs": [
+                "-march=native",
+                "-mtune=native",
+                "-Og",
+                "-g",
+                "-DNDEBUG"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "gnu++11",
+            "intelliSenseMode": "linux-gcc-x64",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/*/include"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}

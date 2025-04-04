@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+# Disassembly outputs
+*.s
+
+# Ignored files
+.ignored
+*.ignored
+*.ignored.*
