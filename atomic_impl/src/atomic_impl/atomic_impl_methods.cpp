@@ -24,8 +24,8 @@ namespace atomic_impl
  *
  * @remarks This function shall never invoke any system call.
  */
-void
-busywait_pause()
+FLATTEN
+void busywait_pause()
 {
     _mm_pause();
 }
@@ -61,20 +61,20 @@ busywait_noreturn()
     throw std::runtime_error("Busywait raise");
 }
 
-uintptr_t
-load(uintptr_t& dest)
+FLATTEN
+uintptr_t load(uintptr_t& dest)
 {
     return __atomic_load_n(&dest, __ATOMIC_SEQ_CST);
 }
 
-void
-store(uintptr_t& dest, uintptr_t value)
+FLATTEN
+void store(uintptr_t& dest, uintptr_t value)
 {
     __atomic_store_n(&dest, value, __ATOMIC_SEQ_CST);
 }
 
-bool
-try_replace(uintptr_t& dest, uintptr_t expected, uintptr_t desired)
+FLATTEN
+bool try_replace(uintptr_t& dest, uintptr_t expected, uintptr_t desired)
 {
     return __atomic_compare_exchange_n(&dest, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
 }

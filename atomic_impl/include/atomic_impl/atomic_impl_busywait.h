@@ -32,6 +32,8 @@ struct busywaiter
      * @exception std::runtime_error
      */
     void wait();
+
+    void wait_longer();
 };
 
 }} // namespace atomic_impl::detail

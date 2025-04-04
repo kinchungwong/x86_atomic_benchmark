@@ -1,6 +1,7 @@
 #ifndef ATOMIC_IMPL_BUSYWAIT_CPP
 #define ATOMIC_IMPL_BUSYWAIT_CPP
 
+#include "atomic_impl/atomic_impl_defs.h"
 #include "atomic_impl/atomic_impl_busywait.h"
 #include "atomic_impl/atomic_impl_methods.h"
 
@@ -17,24 +18,33 @@ busywaiter::~busywaiter()
 {
 }
 
-void busywaiter::wait()
+FLATTEN
+void
+busywaiter::wait()
 {
     if (pause_count >= escalate_pause_count)
     {
-        pause_count = 0;
-        if (yield_count >= escalate_yield_count)
-        {
-            busywait_noreturn();
-            //! @note this line shall be unreachable.
-        }
-        ++yield_count;
-        busywait_yield();
+        wait_longer();
     }
     else 
     {
         ++pause_count;
         busywait_pause();
     }            
+}
+
+void
+INLINE_NEVER
+busywaiter::wait_longer()
+{
+    pause_count = 0;
+    if (yield_count >= escalate_yield_count)
+    {
+        busywait_noreturn();
+        //! @note this line shall be unreachable.
+    }
+    ++yield_count;
+    busywait_yield();
 }
 
 }} // namespace atomic_impl::detail
