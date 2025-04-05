@@ -72,26 +72,21 @@ public:
     std::unique_ptr<LcgHelper> _lcg_helper;
     std::unique_ptr<std::vector<uint64_t>> _calibration;
     char _pad_000[64 - sizeof(_lcg_helper) - sizeof(_calibration)];
-    uintptr_t _active_0;
-    char _pad_001[64 - sizeof(_active_0)];
-    uintptr_t _active_1;
-    char _pad_002[64 - sizeof(_active_1)];
-    uintptr_t _asked_to_join;
-    char _pad_003[64 - sizeof(_asked_to_join)];
     uintptr_t _target_00;
     char _pad_004[64 - sizeof(_target_00)];
     uintptr_t _target_01;
     char _pad_005[64 - sizeof(_target_01)];
     uintptr_t _target_11;
     char _pad_006[64 - sizeof(_target_11)];
+    uint64_t _tsc_per_1_sec;
+    char _pad_008[64 - sizeof(_tsc_per_1_sec)];
+    uint64_t _tsc_epoch;
+    char _pad_009[64 - sizeof(_tsc_epoch)];
 
     Benchmark1()
     {
         _lcg_helper.reset(new LcgHelper());
         _calibration.reset(new std::vector<uint64_t>(2u, 0u));
-        _active_0 = 0u;
-        _active_1 = 0u;
-        _asked_to_join = 0u;
         _target_00 = 0u;
         _target_01 = 0u;
         _target_11 = 0u;
@@ -108,46 +103,61 @@ public:
 
     void run()
     {
-        _calibration->assign(2u, 0u);
         run_calibration();
         run_competing_threads();
     }
 
     void run_calibration()
     {
+        std::cout << "Calibration start. Takes about 2 seconds." << std::endl;
+        _calibration->assign(2u, 0u);
         std::thread t1(&Benchmark1::calibration_func, this, 0);
         std::thread t2(&Benchmark1::calibration_func, this, 1);
         t1.join();
         t2.join();
-        std::cout
-            << "Calibration done: " << _calibration->at(0)
-            << ", " << _calibration->at(1)
-            << std::endl;
+        uint64_t v1 = _calibration->at(0);
+        uint64_t v2 = _calibration->at(1);
+        std::cout << "Calibration done: " << v1 << ", " << v2 << std::endl;
+        _tsc_per_1_sec = (v1 + v2) / 2u;
+        std::cout << "Average tsc per seconds: " << _tsc_per_1_sec << std::endl;
+    }
+
+    void calibration_func(int tid)
+    {
+        //! @note we make sure tid is a valid index into the vector.
+        uint64_t& ref_output = _calibration->at(tid);
+        unsigned int c_start{};
+        unsigned int c_stop{};
+        uint64_t t_start{};
+        uint64_t t_stop{};
+        /**
+         * @note For a 1-second timing to be valid, the timing loop needs
+         * to start and finish while staying on the same CPU core. If not,
+         * we repeat the timing loop until we get a valid result.
+         */
+        pause_1_sec();
+        do
+        {
+            t_start = __rdtscp(&c_start);
+            pause_1_sec();
+            t_stop = __rdtscp(&c_stop);
+        }
+        while (c_start != c_stop);
+        ref_output = t_stop - t_start;
     }
 
     void run_competing_threads()
     {
+        _tsc_epoch = __rdtsc();
         std::cout << "busy_func_repeat_count: " << busy_func_repeat_count << std::endl;
         std::cout << "Approximate total running time: 5 seconds" << std::endl;
         std::cout << "Running competing threads..." << std::endl;
-        atomic_impl::store(_active_0, 0u);
-        atomic_impl::store(_active_1, 0u);
-        atomic_impl::store(_asked_to_join, 0u);
+        std::cout << "_tsc_epoch = " << _tsc_epoch << std::endl;
         atomic_impl::store(_target_00, 0u);
         atomic_impl::store(_target_01, 0u);
         atomic_impl::store(_target_11, 0u);
         std::thread t1(&Benchmark1::thread_func, this, 0);
         std::thread t2(&Benchmark1::thread_func, this, 1);
-        pause_1_sec();
-        atomic_impl::store(_active_0, 1u);
-        pause_1_sec();
-        atomic_impl::store(_active_1, 1u);
-        pause_1_sec();
-        atomic_impl::store(_active_0, 0u);
-        pause_1_sec();
-        atomic_impl::store(_active_1, 0u);
-        pause_1_sec();
-        atomic_impl::store(_asked_to_join, 1u);
         t1.join();
         t2.join();
         std::cout << "Threads joined." << std::endl;
@@ -169,23 +179,6 @@ public:
         std::cout << "Target 00 decoded value is valid: " << (target_00_valid ? "yes" : "no") << std::endl;
         std::cout << "Target 01 decoded value is valid: " << (target_01_valid ? "yes" : "no") << std::endl;
         std::cout << "Target 11 decoded value is valid: " << (target_11_valid ? "yes" : "no") << std::endl;
-    }
-
-    void calibration_func(int tid)
-    {
-        while (true)
-        {
-            unsigned int c_start = (unsigned int)-1;
-            uint64_t t_start = __rdtscp(&c_start);
-            pause_1_sec();
-            unsigned int c_stop = (unsigned int)-1;
-            uint64_t t_stop = __rdtscp(&c_stop);
-            if (c_start == c_stop)
-            {
-                _calibration->at(tid) = t_stop - t_start;
-                return;
-            }
-        }
     }
 
     /**
@@ -252,18 +245,95 @@ public:
 
     void thread_func(int tid)
     {
-        while (!atomic_impl::load(_asked_to_join))
+        /**
+         * @note These are tsc offsets from _tsc_epoch.
+         *
+         * The reason is that TSC occasionally wraps around; subtracting 
+         * _tsc_epoch from future TSC reads gives a (signed) timing offset
+         * which we can safely compare with TSC-based time durations.
+         *
+         * Moreover, because _tsc_epoch is initialized before the threads,
+         * we can guarantee that these signed timing offsets will be always
+         * in the positive range, because it is improbable that the test
+         * would last for more than (2^63 / _tsc_per_1_sec) seconds.
+         */
+        static constexpr uint64_t toff_infinite = ((uint64_t)1u << 63);
+        uint64_t toff_compete_00_start = toff_infinite;
+        uint64_t toff_compete_00_stop = toff_infinite;
+        uint64_t toff_compete_01_start = toff_infinite;
+        uint64_t toff_compete_01_stop = toff_infinite;
+        uint64_t toff_compete_11_start = toff_infinite;
+        uint64_t toff_compete_11_stop = toff_infinite;
+        uint64_t toff_join = 0u;
+        /**
+         * @note Time periods:
+         * ... (from 0.0 to 1.0) not doing anything
+         * ... (from 1.0 to 2.0) tid #0 increments its own (target_00)
+         * ... (from 2.0 to 3.0) tid #0, #1 increments the same (target_01)
+         * ... (from 3.0 to 4.0) tid #1 increments its own (target_11)
+         * ... (from 4.0 to 5.0) not doing anything
+         * ... (at 5.0) both threads join
+         */
+        switch (tid)
         {
-            uintptr_t active_0 = atomic_impl::load(_active_0);
-            uintptr_t active_1 = atomic_impl::load(_active_1);
-            uintptr_t* p_target = (
-                (tid == 1) ? 
-                (active_1 ? &_target_01 : &_target_11) : 
-                (active_0 ? &_target_01 : &_target_00)
-            );
+            case 0:
+            {
+                toff_compete_00_start = _tsc_per_1_sec * 1u;
+                toff_compete_00_stop = _tsc_per_1_sec * 2u;
+                toff_compete_01_start = _tsc_per_1_sec * 2u;
+                toff_compete_01_stop = _tsc_per_1_sec * 3u;
+                toff_compete_11_start = toff_infinite;
+                toff_compete_11_stop = toff_infinite;
+                toff_join = _tsc_per_1_sec * 5u;
+                break;
+            }
+            case 1:
+            {
+                toff_compete_00_start = toff_infinite;
+                toff_compete_00_stop = toff_infinite;
+                toff_compete_01_start = _tsc_per_1_sec * 2u;
+                toff_compete_01_stop = _tsc_per_1_sec * 3u;
+                toff_compete_11_start = _tsc_per_1_sec * 3u;
+                toff_compete_11_stop = _tsc_per_1_sec * 4u;
+                toff_join = _tsc_per_1_sec * 5u;
+                break;
+            }
+            default:
+            {
+                return;
+            }
+        };
+        while (true)
+        {
+            /**
+             * @note allow modular arithmetic underflow; result shall be treated
+             * as signed. In practice, it is guaranteed to be in the positive range.
+             */
+            uint64_t toff = (__rdtsc() - _tsc_epoch);
+            if (toff >= toff_join)
+            {
+                break;
+            }
+            uintptr_t* p_target = nullptr;
+            if (toff >= toff_compete_00_start && toff < toff_compete_00_stop)
+            {
+                p_target = &_target_00;
+            }
+            else if (toff >= toff_compete_01_start && toff < toff_compete_01_stop)
+            {
+                p_target = &_target_01;
+            }
+            else if (toff >= toff_compete_11_start && toff < toff_compete_11_stop)
+            {
+                p_target = &_target_11;
+            }
+            if (!p_target)
+            {
+                continue;
+            }
             for (size_t modify_repeat_count = 0;
-                 modify_repeat_count < busy_func_repeat_count;
-                 ++modify_repeat_count)
+                modify_repeat_count < busy_func_repeat_count;
+                ++modify_repeat_count)
             {
 #if 1
                 // Code under test
@@ -274,13 +344,15 @@ public:
                 // ... which is very efficient and requires no loop.
                 __atomic_fetch_add(p_target, 1u, __ATOMIC_SEQ_CST);
 #else
-                // Using non-atomic increment
-                // ... Likely to produce invalid result due to clobbering
-                *p_target += 1u;
+                // Using non-atomic modify
+                // ... Likely being clobbered.
+                *p_target = busy_func(*p_target);
 #endif
-            }
-        }
-    }
-};
+            } // for(modify_repeat_count)
+        } // while(true)
+        return;
+    } // thread_func(tid)
+
+}; // class Benchmark1
 
 #endif // BENCHMARK_1_CPP
