@@ -29,7 +29,7 @@ busywaiter::wait()
     else 
     {
         ++pause_count;
-        busywait_pause();
+        busywait_pause(busywait_pause_tsc_goal);
     }            
 }
 

@@ -8,11 +8,12 @@ namespace detail {
 
 struct busywaiter
 {
-    //! @todo Change to some reasonable value based on benchmark result.
-    static constexpr unsigned escalate_pause_count = 1024u;
-    
-    //! @todo Change to some reasonable value based on benchmark result.
-    static constexpr unsigned escalate_yield_count = 1024u;
+    /**
+     * @brief Escalation limits, adjusted from benchmark results.
+     */
+    static constexpr uint64_t busywait_pause_tsc_goal = 160u;
+    static constexpr unsigned escalate_pause_count = 32u;
+    static constexpr unsigned escalate_yield_count = 32u;
 
     unsigned pause_count;
     unsigned yield_count;

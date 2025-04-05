@@ -25,9 +25,17 @@ namespace atomic_impl
  * @remarks This function shall never invoke any system call.
  */
 FLATTEN
-void busywait_pause()
+void busywait_pause(uint64_t tsc_goal)
 {
-    _mm_pause();
+    /**
+     * @ref https://www.intel.com/content/www/us/en/developer/articles/technical/a-common-construct-to-avoid-the-contention-of-threads-architecture-agnostic-spin-wait-loops.html
+     */
+    uint64_t start = __rdtsc();
+    do
+    {
+        _mm_pause();
+    }
+    while ((__rdtsc() - start) < tsc_goal);
 }
 
 /**

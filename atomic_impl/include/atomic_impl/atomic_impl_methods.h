@@ -7,13 +7,16 @@ namespace atomic_impl {
 
 /**
  * @brief Indicates to CPU that the current thread is in a busy-wait loop,
- *        allowing the CPU to optimize its performance by either reducing
- *        power consumption, perform a hyperthreading yield, or
- *        temporarily boosting the speed of other cores.
+ *        allowing the CPU to optimize its performance by reducing
+ *        power consumption, yielding to an adjacent hyperthreading,
+ *        or temporarily boosting the speed of other cores while clocking
+ *        down the current core.
  *
  * @remarks This function shall never invoke any system call.
+ *
+ * @ref Intel technical note 672290: Architecture Agnostic Spin-Wait Loops
  */
-void busywait_pause();
+void busywait_pause(uint64_t tsc_goal = 160u);
 
 /**
  * @brief Indicates to the operating system that the current thread is
