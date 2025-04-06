@@ -16,6 +16,8 @@
                 "-I${workspaceFolder}",
                 "-I${workspaceFolder}/atomic_impl/include",
                 "-I${workspaceFolder}/atomic_impl/src",
+                "-I${workspaceFolder}/nano_timer/include",
+                "-I${workspaceFolder}/nano_timer/src",
                 "-o",
                 "${fileDirname}/${fileBasenameNoExtension}.out"
             ],

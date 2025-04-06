@@ -5,7 +5,9 @@
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}/atomic_impl/include",
-                "${workspaceFolder}/atomic_impl/src"
+                "${workspaceFolder}/atomic_impl/src",
+                "${workspaceFolder}/nano_timer/include",
+                "${workspaceFolder}/nano_timer/src"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/g++",
